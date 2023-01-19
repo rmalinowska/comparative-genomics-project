@@ -64,6 +64,8 @@ if not os.path.exists(PATH_ALIGNMENTS):
   os.makedirs(PATH_ALIGNMENTS) 
   print("Created directory for alignments.")
 
+os.chdir(working_dir)
+
 def get_species(input):
     """ Returns the list of species names obtained from a file, where each species is in an individual line."""
     with open(input, "r") as inp:
@@ -120,16 +122,16 @@ def download_proteomes(interpro_ids):
     """ Function runs download_proteome.py script and downloads proteomes for all given species (assuming that the first ID for the species is most likely to be the correct one.) 
     Saved proteome has a file name like [proteome_ID].fasta"""
     for ID in interpro_ids.values():
-        os.system("python download_proteome.py -id " + ID+" > "+ID+".fasta")
+        os.system("python "+working_dir+"download_proteome.py -id " + ID+" > " + PATH_PROTEOMES+ID+".fasta")
 
 def add_organism_ids(interpro_ids):
     """ Function that updates all proteome fasta files so each protein has the name of the organism at the beggining.
     Output files are like [proteome_ID]_withname.fasta """
     for organism, input_ID in interpro_ids.items():
-        with open(input_ID+".fasta", "r") as input:
-            with open(input_ID+"_withname.fasta", "w+") as out:
-                input = input.read(). split(">")
-                for protein in input:
+        with open(PATH_PROTEOMES+input_ID+".fasta", "r") as inp:
+            with open(PATH_PROTEOMES+input_ID+"_withname.fasta", "w+") as out:
+                inp = inp.read(). split(">")
+                for protein in inp:
                     if protein != "":
                         protein = protein.split("\n")
                         header, sequence = protein[0], protein[1:]
@@ -139,21 +141,21 @@ def add_organism_ids(interpro_ids):
                             if frag != '':
                                 out.write(frag+'\n')
 
-def merge_fastas(IDs, filename):
+def merge_fastas(IDs):
     """ Function merges all proteomes to one file named [filename].fasta """
-    with open(filename, "w+") as out:
+    with open(working_dir+merged_fasta_output_filename, "w+") as out:
         for ID in IDs.values():
-            single = open(ID+"_withname.fasta").read()
+            single = open(PATH_PROTEOMES+ID+"_withname.fasta").read()
             out.write(single)
 
-def run_mmseq(path, input, output_prefix, identity_threshold, coverage, cov_mode):
-    os.system(path+" easy-cluster "+ input + " " + output_prefix + " tmp " + "--min-seq-id " + \
+def run_mmseq(path, output_prefix, identity_threshold, coverage, cov_mode):
+    os.system(path+" easy-cluster "+ working_dir+merged_fasta_output_filename + " " + output_prefix + " tmp " + "--min-seq-id " + \
         str(identity_threshold) + " -c " + str(coverage) +" --cov-mode " + str(cov_mode))
 
 def parse_mmseq(tsv_file):
     """ Based on mmseq cluster file, creates dictionary of a form: cluster_ID : [list of sequence IDs from this cluster]. """
     result = {}
-    with open(tsv_file, "r") as data:
+    with open(working_dir+tsv_file, "r") as data:
         data = data.readlines()
         for i in range(0, len(data)):
             cluster_ID, seq_ID, _ = re.split(r"\s+", data[i])
@@ -164,14 +166,9 @@ def parse_mmseq(tsv_file):
             result.pop(k)
     return result
 
-def get_clusters_1to1(clusters):
+def get_clusters_1to1(species_list, clusters):
     final_clusters = {}
-    all_organisms = set(['Scheffersomyces_stipitis', 'Aspergillus_fumigatus', 'Yarrowia_lipolytica', 'Vanderwaltozyma_polyspora', 'Komagataella_phaffii', \
-    'Saccharomyces_arboricola', 'Naumovozyma_castellii', 'Candida_parapsilosis', 'Candida_tenuis', 'Trichoderma_reesei', 'Meyerozyma_guilliermondii', \
-    'Lachancea_mirantina', 'Ashbya_gossypii', 'Candida_albicans', 'Lachancea_thermotolerans', 'Torulaspora_delbrueckii', 'Kazachstania_africana', \
-    'Candida_maltosa', 'Clavispora_lusitaniae', 'Tetrapisispora_phaffii', 'Neurospora_crassa', 'Debaryomyces_hansenii', 'Aspergillus_nidulans', \
-    'Kazachstania_naganishii', 'Candida_tropicalis', 'Schizosaccharomyces_pombe', 'Schizosaccharomyces_japonicus', 'Candida_glabrata', \
-    'Tetrapisispora_blattae', 'Kluyveromyces_lactis', 'Lachancea_dasiensis', 'Magnaporthe_grisea', 'Saccharomyces_cerevisiae'])
+    all_organisms = set(species_list)
     for k, v in clusters.items():
         organisms = set([ID.split("|")[0] for ID in v])
         if len(organisms) >= 30:
@@ -198,7 +195,7 @@ def get_sequences(fasta_file):
 def save_clusters(seq_dict, clusters_dict):
     index = 0
     for v in clusters_dict.values():
-        with open(str(index)+"cluster.fasta", "w+") as f:
+        with open(PATH_CLUSTERS+str(index)+"cluster.fasta", "w+") as f:
             for ID in v:
                 f.write(">"+ID+"\n"+str(seq_dict[ID])+"\n")
             index += 1
@@ -207,17 +204,18 @@ def align_clusters(path_muscle):
     index = 0
     while True:
         try:
-            os.system(path_muscle+" -align "+str(index)+"cluster.fasta"+" -output "+str(index)+"cluster_alignment.fasta")
+            os.system(path_muscle+" -align "+PATH_CLUSTERS+str(index)+"cluster.fasta"+" -output "+\
+                PATH_ALIGNMENTS+str(index)+"cluster_alignment.fasta")
             index += 1
         except:
             break
 
 def change_ids():
-    file_names = os.listdir(os.getcwd())
+    file_names = os.listdir(PATH_ALIGNMENTS)
     for file in file_names:
         if file[-15:] == "alignment.fasta":
             with open(file, "r") as handle:
-                with open("CH_"+file, "w+") as out:
+                with open(PATH_ALIGNMENTS+"CH_"+file, "w+") as out:
                     for record in SeqIO.parse(handle, "fasta"):
                         out.write(">"+str(record.id).split("|")[0]+"\n")
                         out.write(str(record.seq)+"\n")
@@ -225,7 +223,7 @@ def change_ids():
 def construct_tree(aln_file, calc_method = 'blosum62', tree_const_method = 'nj'):
     # function that constructs single tree from alignment file given method for calculating distance 
     # and method for tree construction
-    aln = AlignIO.read(aln_file, "fasta")
+    aln = AlignIO.read(PATH_ALIGNMENTS + aln_file, "fasta")
     calculator = DistanceCalculator(calc_method)
     constructor = DistanceTreeConstructor(calculator, tree_const_method)
     tree = constructor.build_tree(aln)
@@ -233,31 +231,28 @@ def construct_tree(aln_file, calc_method = 'blosum62', tree_const_method = 'nj')
 
 def build_trees(calc_method, tree_const_method):
     trees = []
-    file_names = os.listdir(os.getcwd())
+    file_names = os.listdir(PATH_ALIGNMENTS)
     for file in file_names:
         if file[-15:] == "alignment.fasta" and file[0:2] == "CH":
-            tree = construct_tree(file, calc_method, tree_const_method)
+            f = file.open()
+            tree = construct_tree(f, calc_method, tree_const_method)
             trees.append(tree)
     return trees
 
-def write_newick(trees, path_output, output):
+def write_newick(trees, output):
     writer = Phylo.NewickIO.Writer(trees)
-    with open(path_output+output, "w+") as out:
+    with open(PATH_TREES+output, "w+") as out:
         writer.write(out)
 
-def mark_unrooted(path_to_directory, filename):
-    with open(path_to_directory+filename, "r") as inp:
+def mark_unrooted(filename):
+    with open(PATH_TREES+filename, "r") as inp:
         inp = inp.read().split(";")
-        with open(path_to_directory+filename[:-4]+"_unrooted.nwk", "w+") as out:
+        with open(PATH_TREES+filename[:-4]+"_unrooted.nwk", "w+") as out:
             for tree in inp:
                 tree = tree.strip()
                 if len(tree) != 0:
                     out.write("[&U]"+tree+";\n")
 
-# def make_database(path_blast, fastafile):
-#     title = fastafile[:-6]
-#     os.system(path_blast+"\\blastp\" -query "+ fastafile + " -db " + fastafile + " -out blast_result")
-# path_to_blast = "\"C:\\Program Files\\NCBI\\blast-BLAST_VERSION+\\bin"
 
 if SPECIES:
     species = get_species(species_filename)
@@ -272,15 +267,15 @@ else:
     sys.exit()
 #download_proteomes(interpro_ids)
 #add_organism_ids(interpro_ids)
-#merge_fastas(interpro_ids, merged_fasta_output_filename)
-#run_mmseq(path_to_mmseq, merged_fasta_output_filename, PREF, IDENT, COVER, COV_MODE)
+#merge_fastas(interpro_ids)
+#run_mmseq(path_to_mmseq, PREF, IDENT, COVER, COV_MODE)
 #clusters = parse_mmseq(PREF+"_cluster.tsv")
 #sizes_of_clusters = [len(val) for val in clusters.values()]
-#final_clusters = get_clusters_1to1(clusters)
+#final_clusters = get_clusters_1to1(list(interpro_ids.keys()), clusters)
 #sequences_dict = get_sequences(merged_fasta_output_filename)
 #save_clusters(sequences_dict, final_clusters)
 #align_clusters(path_to_muscle)
 #change_ids()
 #trees = build_trees(DISTANCE_METHOD, TREE_CONSTRUCTION_METHOD)
-#write_newick(trees, PATH_TREES, "all_trees.nwk")
-#mark_unrooted(PATH_TREES, "all_trees.nwk")
+#write_newick(trees, "all_trees.nwk")
+#mark_unrooted("all_trees.nwk")
