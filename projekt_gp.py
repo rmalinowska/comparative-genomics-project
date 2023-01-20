@@ -64,6 +64,17 @@ if not os.path.exists(PATH_ALIGNMENTS):
   os.makedirs(PATH_ALIGNMENTS) 
   print("Created directory for alignments.")
 
+PATH_CLUST_PARA = working_dir+"clusters_paralogs\\"
+if not os.path.exists(PATH_CLUST_PARA):
+    os.makedirs(PATH_CLUST_PARA)
+    print("Created directory for clusters with paralogs.") 
+
+PATH_ALIGN_PARA = working_dir+"alignments_paralogs\\"
+if not os.path.exists(PATH_ALIGN_PARA):
+    os.makedirs(PATH_ALIGN_PARA)
+    print("Created directory for alignments with paralogs.")
+
+
 os.chdir(working_dir)
 
 def get_species(input):
@@ -185,6 +196,7 @@ def get_clusters_1to1(species_list, clusters):
                 
     return final_clusters
 
+
 def get_sequences(fasta_file):
     result = {}
     data = SeqIO.parse(fasta_file, "fasta")
@@ -200,7 +212,16 @@ def save_clusters(seq_dict, clusters_dict):
                 f.write(">"+ID+"\n"+str(seq_dict[ID])+"\n")
             index += 1
 
+def save_clusters_paralogs(seq_dict, clusters_dict):
+    index = 0
+    for v in clusters_dict.values():
+        with open(PATH_CLUST_PARA+str(index)+"cluster_paralogs.fasta", "w+") as f:
+            for ID in v:
+                f.write(">"+ID+"\n"+str(seq_dict[ID])+"\n")
+            index += 1
+
 def align_clusters(path_muscle):
+    
     index = 0
     while True:
         try:
@@ -210,8 +231,18 @@ def align_clusters(path_muscle):
         except:
             break
 
-def change_ids():
-    file_names = os.listdir(PATH_ALIGNMENTS)
+def align_clusters_paralogs(path_muscle):
+    index = 0
+    while True:
+        try:
+            os.system(path_muscle+" -align "+PATH_CLUST_PARA+str(index)+"cluster_paralogs.fasta"+" -output "+\
+                PATH_ALIGN_PARA+str(index)+"cluster_paralogs_alignment.fasta")
+            index += 1
+        except:
+            break
+
+def change_ids(path):
+    file_names = os.listdir(path)
     for file in file_names:
         if file[-15:] == "alignment.fasta":
             with open(file, "r") as handle:
@@ -258,13 +289,12 @@ if SPECIES:
     species = get_species(species_filename)
     proteome_ids = get_all_proteome_ids(species)
     interpro_ids = ID_per_organism(proteome_ids)
-    print(interpro_ids)
 elif IDS:
     interpro_ids = get_species_and_ids(ids_file)
-    print(interpro_ids)
 else:
     print("You haven't properly provided file with species names or proteom IDs. Check if you've set one of variables to True.")
     sys.exit()
+
 #download_proteomes(interpro_ids)
 #add_organism_ids(interpro_ids)
 #merge_fastas(interpro_ids)
@@ -275,7 +305,11 @@ else:
 #sequences_dict = get_sequences(merged_fasta_output_filename)
 #save_clusters(sequences_dict, final_clusters)
 #align_clusters(path_to_muscle)
-#change_ids()
+#change_ids(PATH_ALIGNMENTS)
 #trees = build_trees(DISTANCE_METHOD, TREE_CONSTRUCTION_METHOD)
 #write_newick(trees, "all_trees.nwk")
 #mark_unrooted("all_trees.nwk")
+
+#save_clusters_paralogs(sequences_dict, clusters)
+#align_clusters_paralogs(path_to_muscle)
+change_ids(PATH_ALIGN_PARA)
