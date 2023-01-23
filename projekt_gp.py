@@ -6,6 +6,8 @@ import copy
 from Bio import SeqIO, AlignIO, Phylo
 from Bio.Phylo.TreeConstruction import DistanceCalculator, DistanceTreeConstructor
 from Bio.Phylo import Consensus, NewickIO
+from Bio.Phylo.Consensus import *
+import numpy as np
 # Specify the working directory
 working_dir = "C:\\Users\\roksa\\Desktop\\sem7\\GP\\projekt\\"
 
@@ -67,15 +69,27 @@ if not os.path.exists(PATH_ALIGNMENTS):
 PATH_CLUST_PARA = working_dir+"clusters_paralogs\\"
 if not os.path.exists(PATH_CLUST_PARA):
     os.makedirs(PATH_CLUST_PARA)
-    print("Created directory for clusters with paralogs.") 
+    print("Created directory for clusters with paralogsgi.") 
 
 PATH_ALIGN_PARA = working_dir+"alignments_paralogs\\"
 if not os.path.exists(PATH_ALIGN_PARA):
     os.makedirs(PATH_ALIGN_PARA)
     print("Created directory for alignments with paralogs.")
 
+PATH_TREES_PARA = working_dir+"trees_paralogs\\"
+if not os.path.exists(PATH_TREES_PARA):
+  os.makedirs(PATH_TREES_PARA) 
+  print("Created directory for trees with paralogs.")
 
+PATH_BOOTSTRAP = working_dir+"bootstrap\\"
+if not os.path.exists(PATH_BOOTSTRAP):
+    os.makedirs(PATH_BOOTSTRAP)
+    print("Created directory for bootstrapped trees.")
+
+PATH_RSCRIPT = "\"C:\\Program Files\\R\\R-4.2.2\\bin\\Rscript.exe\""
 os.chdir(working_dir)
+
+PATH_DUPTREE = "C:\\Users\\roksa\\Desktop\\sem7\\GP\\duptree"
 
 def get_species(input):
     """ Returns the list of species names obtained from a file, where each species is in an individual line."""
@@ -196,6 +210,13 @@ def get_clusters_1to1(species_list, clusters):
                 
     return final_clusters
 
+def get_clusters_wparalogs(clusters):
+    final_clusters = {}
+    for k, v in clusters.items():
+        organisms = set([ID.split("|")[0] for ID in v])
+        if len(organisms) > 4:
+            final_clusters[k] = v
+    return final_clusters
 
 def get_sequences(fasta_file):
     result = {}
@@ -220,70 +241,134 @@ def save_clusters_paralogs(seq_dict, clusters_dict):
                 f.write(">"+ID+"\n"+str(seq_dict[ID])+"\n")
             index += 1
 
-def align_clusters(path_muscle):
-    
-    index = 0
-    while True:
-        try:
-            os.system(path_muscle+" -align "+PATH_CLUSTERS+str(index)+"cluster.fasta"+" -output "+\
-                PATH_ALIGNMENTS+str(index)+"cluster_alignment.fasta")
-            index += 1
-        except:
-            break
+def align_clusters(path_muscle, path_to_clusters, path_to_alignments):
+    file_names = os.listdir(path_to_clusters)
+    for f in file_names:
+        f = f.open()
+        os.system(path_muscle+" -align "+path_to_clusters+f+" -output "+\
+            path_to_alignments+f[:-5]+"_alignment.fasta")
 
-def align_clusters_paralogs(path_muscle):
-    index = 0
-    while True:
-        try:
-            os.system(path_muscle+" -align "+PATH_CLUST_PARA+str(index)+"cluster_paralogs.fasta"+" -output "+\
-                PATH_ALIGN_PARA+str(index)+"cluster_paralogs_alignment.fasta")
-            index += 1
-        except:
-            break
 
 def change_ids(path):
     file_names = os.listdir(path)
     for file in file_names:
         if file[-15:] == "alignment.fasta":
-            with open(file, "r") as handle:
-                with open(PATH_ALIGNMENTS+"CH_"+file, "w+") as out:
+            with open(path+file, "r") as handle:
+                with open(path+"CH_"+file, "w+") as out:
                     for record in SeqIO.parse(handle, "fasta"):
                         out.write(">"+str(record.id).split("|")[0]+"\n")
                         out.write(str(record.seq)+"\n")
 
-def construct_tree(aln_file, calc_method = 'blosum62', tree_const_method = 'nj'):
+def construct_tree(path_alignments, aln_file, calc_method = 'blosum62', tree_const_method = 'nj'):
     # function that constructs single tree from alignment file given method for calculating distance 
     # and method for tree construction
-    aln = AlignIO.read(PATH_ALIGNMENTS + aln_file, "fasta")
+    aln = AlignIO.read(path_alignments + aln_file, "fasta")
     calculator = DistanceCalculator(calc_method)
     constructor = DistanceTreeConstructor(calculator, tree_const_method)
     tree = constructor.build_tree(aln)
     return tree
 
-def build_trees(calc_method, tree_const_method):
+def build_trees(calc_method, tree_const_method, path_alignments):
     trees = []
-    file_names = os.listdir(PATH_ALIGNMENTS)
-    for file in file_names:
-        if file[-15:] == "alignment.fasta" and file[0:2] == "CH":
-            f = file.open()
-            tree = construct_tree(f, calc_method, tree_const_method)
+    file_names = os.listdir(path_alignments)
+    for f in file_names:
+        if f[-15:] == "alignment.fasta" and f[0:2] == "CH":
+            tree = construct_tree(path_alignments, f, calc_method, tree_const_method)
             trees.append(tree)
     return trees
 
-def write_newick(trees, output):
+def remove_negative(trees):
+    result = []
+    for tree in trees:
+        string = str(tree)
+        negative = re.findall("branch_length=-",string)
+        if negative == []:
+            result.append(tree)
+    return result
+
+
+    
+
+def build_trees_wparalogs(calc_method, tree_const_method, path_alignments):
+    trees = []
+    file_names = os.listdir(path_alignments)
+    for f in file_names:
+        if f[-15:] == "alignment.fasta":
+            try:
+                tree = construct_tree(path_alignments, f, calc_method, tree_const_method)
+                trees.append(tree)
+            except ValueError:
+                print("VALUE ERROR", f)
+    return trees
+
+def write_newick(trees, output, path_trees):
     writer = Phylo.NewickIO.Writer(trees)
-    with open(PATH_TREES+output, "w+") as out:
+    with open(path_trees+output, "w+") as out:
         writer.write(out)
 
-def mark_unrooted(filename):
-    with open(PATH_TREES+filename, "r") as inp:
+def mark_unrooted(filename, path_to_trees):
+    with open(path_to_trees+filename, "r") as inp:
         inp = inp.read().split(";")
-        with open(PATH_TREES+filename[:-4]+"_unrooted.nwk", "w+") as out:
+        with open(path_to_trees+filename[:-4]+"_unrooted.nwk", "w+") as out:
             for tree in inp:
                 tree = tree.strip()
                 if len(tree) != 0:
                     out.write("[&U]"+tree+";\n")
 
+def build_bootstrap_trees(calc_method, path_alignments, path_bootstrap):
+    file_names = os.listdir(path_alignments)
+    for f in file_names:
+        if f[-15:] == "alignment.fasta" and f[0:2] == "CH":
+            msa = AlignIO.read(path_alignments+f, "fasta")
+            calculator = DistanceCalculator(calc_method)
+            constructor = DistanceTreeConstructor(calculator)
+            trees = bootstrap_trees(msa, 20, constructor)
+            write_newick(list(trees), f[:-15]+"bootstrap_trees.nwk",path_bootstrap)
+
+def get_supported_trees(path_trees):
+    file_names = os.listdir(path_trees)
+    result = []
+    for f in file_names:
+        trees = list(Phylo.parse(path_trees+ f, "newick"))
+        for i in range(len(trees)):
+            target_tree = trees[i]
+            support_tree = get_support(target_tree, trees)
+            confidence = []
+            for clade in support_tree.find_clades():
+                if clade.confidence is not None:
+                    confidence.append(clade.confidence)
+            if np.mean(confidence) >= 80:
+                result.append(target_tree)
+    return result
+
+def build_consensus(input_file):
+    # input file should contain whole path to file with trees
+    os.system(PATH_RSCRIPT  + " --vanilla consensus.r "+input_file)
+
+def build_supertree(input_file):
+    os.system(PATH_DUPTREE + " -i "+ input_file + " -o " + input_file+"_supertree_data.nwk")
+    with open(input_file+"_supertree_data.nwk", "r") as data:
+        data = data.readlines()
+        supertree = data[3]
+        with open(input_file+"_supertree.nwk", "w+") as st_file:
+            st_file.write(supertree.strip())
+
+# def delete(clusters):
+#     files = os.listdir(PATH_ALIGN_PARA)
+#     vals = [set(l) for l in clusters.values()]
+#     for f in files:
+#         data = open(PATH_ALIGN_PARA+f)
+#         data = data.read().split(">")
+#         ids = []
+#         for record in data:
+#             ID = record.strip().split("\n")
+#             if len(ID) != 1:
+#                 ids.append(ID[0])
+#         if set(ids) in vals:
+#             continue
+#         else:
+            
+#             os.remove(PATH_ALIGN_PARA+f)
 
 if SPECIES:
     species = get_species(species_filename)
@@ -295,21 +380,46 @@ else:
     print("You haven't properly provided file with species names or proteom IDs. Check if you've set one of variables to True.")
     sys.exit()
 
-#download_proteomes(interpro_ids)
-#add_organism_ids(interpro_ids)
-#merge_fastas(interpro_ids)
-#run_mmseq(path_to_mmseq, PREF, IDENT, COVER, COV_MODE)
-#clusters = parse_mmseq(PREF+"_cluster.tsv")
-#sizes_of_clusters = [len(val) for val in clusters.values()]
-#final_clusters = get_clusters_1to1(list(interpro_ids.keys()), clusters)
-#sequences_dict = get_sequences(merged_fasta_output_filename)
-#save_clusters(sequences_dict, final_clusters)
-#align_clusters(path_to_muscle)
-#change_ids(PATH_ALIGNMENTS)
-#trees = build_trees(DISTANCE_METHOD, TREE_CONSTRUCTION_METHOD)
-#write_newick(trees, "all_trees.nwk")
-#mark_unrooted("all_trees.nwk")
 
-#save_clusters_paralogs(sequences_dict, clusters)
-#align_clusters_paralogs(path_to_muscle)
-change_ids(PATH_ALIGN_PARA)
+
+#download_proteomes(interpro_ids) # downloading proteomes based on InterPro proteome IDs based on provided file or through API
+#add_organism_ids(interpro_ids) # adding species names in the beggining of proteins IDs in downloaded fasta files
+#merge_fastas(interpro_ids) # merging all proteomes in one fasta file
+#run_mmseq(path_to_mmseq, PREF, IDENT, COVER, COV_MODE) # clustering
+#clusters = parse_mmseq(PREF+"_cluster.tsv") # parsing output files from clustering in order to get clusters
+#sizes_of_clusters = [len(val) for val in clusters.values()] # checking clusters sizes
+
+"""1-1 case"""
+
+#clusters1to1 = get_clusters_1to1(list(interpro_ids.keys()), clusters) # generating clusters for 1-1 case
+#sequences_dict = get_sequences(merged_fasta_output_filename) # constructing dictionary with IDs of proteins and its sequences
+#save_clusters(sequences_dict, clusters1to1) # saving clusters to fasta files
+#align_clusters(path_to_muscle, PATH_CLUSTERS, PATH_ALIGNMENTS) # MSA for all clusters
+#change_ids(PATH_ALIGNMENTS) # changind IDs of the proteins to organisms names
+#trees = build_trees(DISTANCE_METHOD, TREE_CONSTRUCTION_METHOD, PATH_ALIGNMENTS) # building trees based on alignments
+#trees = remove_negative(trees) # removing trees with negative branch lengths
+#write_newick(trees, "all_trees.nwk", PATH_TREES) # writing all trees to the single file
+#mark_unrooted("all_trees.nwk", PATH_TREES) # marking trees as unrooted for supertree construction (duptree program requirement)
+#build_consensus(PATH_TREES+"all_trees.nwk") # building consensus tree by running R script
+#build_supertree(PATH_TREES+"all_trees_unrooted.nwk") # building supertree by running duptree
+
+"""case with paralogs"""
+
+#clusters_wparalogs = get_clusters_wparalogs(clusters) # generating clusters for case allowing paralogs
+#save_clusters_paralogs(sequences_dict, clusters) # saving clusters with paralogs to fasta files
+#align_clusters(path_to_muscle, PATH_CLUST_PARA, PATH_ALIGN_PARA) # MSA
+# trees_wparalogs = build_trees_wparalogs(DISTANCE_METHOD, TREE_CONSTRUCTION_METHOD, PATH_ALIGN_PARA) # building trees
+# trees_wparalogs = remove_negative(trees_wparalogs) # removing trees with negative branch lengths
+# write_newick(trees_wparalogs, "all_trees_wparalogs.nwk", PATH_TREES_PARA) # writing trees to a single file
+#mark_unrooted("all_trees_wparalogs.nwk", PATH_TREES_PARA) # marking trees as unrooted for supertree construction (duptree program requirement)
+#build_consensus(PATH_TREES_PARA+"all_trees_wparalogs.nwk") # building consensus tree by running R script
+#build_supertree(PATH_TREES_PARA+"all_trees_wparalogs_unrooted.nwk") # building supertree by running duptree
+
+"""case with bootstrap"""
+#build_bootstrap_trees(DISTANCE_METHOD, PATH_ALIGNMENTS, PATH_BOOTSTRAP) # building bootstrap trees for all alignments from 1-1 case
+#supported_trees = get_supported_trees(PATH_BOOTSTRAP) # filtering only supported trees
+#supported_trees = remove_negative(supported_trees) # removing trees with negative branch lengths
+#write_newick(supported_trees, "supported_trees.nwk", PATH_TREES) # saving supported trees to a single file
+#mark_unrooted("supported_trees.nwk", PATH_TREES) # marking trees as unrooted for supertree construction (duptree program requirement)
+#build_consensus(PATH_TREES+"supported_trees.nwk") # building consensus tree by running R script
+#build_supertree(PATH_TREES+"supported_trees_unrooted.nwk") # building supertree by running duptree
