@@ -13,19 +13,18 @@ Aspergillus nidulans
 
 Candida parapsilosis
 
-Magnaporthe grisea\\
-Debaryomyces hansenii\\
+Magnaporthe grisea
+
+Debaryomyces hansenii
+
 Candida tenuis
-Torulaspora delbrueckii
-Lachancea thermotolerans
-Tetrapisispora blattae
-Aspergillus fumigatus
-Saccharomyces arboricola
-Schizosaccharomyces japonicus
 
 2. plik z nazwami gatunków oraz ID proteomów z bazy InterPro przedzieliony nowymi liniami, np.:
+
 Aspergillus nidulans,UP000000560
+
 Candida parapsilosis,UP000005221
+
 Schizosaccharomyces japonicus,UP000001744
 
 Pierwsza opcja służy do przypadków, gdy mamy bardzo dużo gatunków i nieefektywne byłoby wyszukiwanie wszystkich ID proteomów, natomiast może ona się mylić. Ten sposób zakłada, że po przeszukaniu bazy proteomów InterPro danym gatunkiem, pierwszy wynik jest poprawnym proteomem. Zwykle tak się zdarza, ale niestety nie zawsze, dlatego korzystając z tej opcji, trzeba przeprowadzić walidację, czy pobrane proteomy są poprawne, np. poprzez sprawdzenie, czy któryś proteom nie ma zaskakująco małej wielkości.
