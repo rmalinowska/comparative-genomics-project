@@ -13,8 +13,8 @@ Aspergillus nidulans
 
 Candida parapsilosis
 
-Magnaporthe grisea
-Debaryomyces hansenii
+Magnaporthe grisea\\
+Debaryomyces hansenii\\
 Candida tenuis
 Torulaspora delbrueckii
 Lachancea thermotolerans
