@@ -65,4 +65,6 @@ PATH_RSCRIPT = *str: ścieżka do Rscript w celu wywołania skryptu R, w przypad
 
 PATH_DUPTREE = *ścieżka do programu duptree*
 
+BOOTSTRAP_REP = *int: liczba drzew generowanych za pomocą metody bootstrap*
+
 Aby uruchomić program należy mieć w katalogu, w którym pracujemy skrypty: projekt_gp.py, consensus.r, download_proteome.py oraz uruchomić skrypt projekt_gp.py.
