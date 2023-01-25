@@ -8,8 +8,11 @@ Wtmagane zainstalowane programy: muscle, mmseqs2, duptree.
 Są dwie opcje podania danych o gatunkach do skryptu:
 
 1. plik z nazwami gatunków przedzielony nowymi liniami, np.:
-Aspergillus nidulans\n
+
+Aspergillus nidulans
+
 Candida parapsilosis
+
 Magnaporthe grisea
 Debaryomyces hansenii
 Candida tenuis
