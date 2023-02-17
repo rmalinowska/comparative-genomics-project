@@ -1,13 +1,15 @@
-# Projekt zaliczeniowy Genomika Porównawcza
+# Project for comparative genomics course
 
-### Instrukcja uruchomienia programu
-Wymagane zainstalowane pakiety: Python: Biopython, numpy, matplotlib, requests, copy, sys, re, json, os; R: TreeTools, ape.
-Wtmagane zainstalowane programy: muscle, mmseqs2, duptree.
+Project aims to perform analysis of given species proteomes and create proposed phylogenetic trees using different methods like consensus tree and supertree. 
 
-#### Dane
-Są dwie opcje podania danych o gatunkach do skryptu:
+### How to run
+Required packages: Python: Biopython, numpy, matplotlib, requests, copy, sys, re, json, os; R: TreeTools, ape.
+Required programms: muscle, mmseqs2, duptree.
 
-1. plik z nazwami gatunków przedzielony nowymi liniami, np.:
+#### Data
+There are two options of providing input data to the script:
+
+1. file with species names separated with new line, for example:
 
 Aspergillus nidulans
 
@@ -19,7 +21,7 @@ Debaryomyces hansenii
 
 Candida tenuis
 
-2. plik z nazwami gatunków oraz ID proteomów z bazy InterPro przedzieliony nowymi liniami, np.:
+2. file with species names and proteome IDs from InterPro datapase separated with new line, for example:
 
 Aspergillus nidulans,UP000000560
 
@@ -27,46 +29,46 @@ Candida parapsilosis,UP000005221
 
 Schizosaccharomyces japonicus,UP000001744
 
-Pierwsza opcja służy do przypadków, gdy mamy bardzo dużo gatunków i nieefektywne byłoby wyszukiwanie wszystkich ID proteomów, natomiast może ona się mylić. Ten sposób zakłada, że po przeszukaniu bazy proteomów InterPro danym gatunkiem, pierwszy wynik jest poprawnym proteomem. Zwykle tak się zdarza, ale niestety nie zawsze, dlatego korzystając z tej opcji, trzeba przeprowadzić walidację, czy pobrane proteomy są poprawne, np. poprzez sprawdzenie, czy któryś proteom nie ma zaskakująco małej wielkości.
+First option is good for the case, where we have a lot of species and it would be tedious to search for all proteome IDs, but in some cases it might result with inproper results, cosidering that a wrong proteome may be downloaded from database (it downloads the first result from browsing proteomes by species name). In this case it is recommended to validate results (for example check if size of downloaded proteome is not suspiciously small).
 
-Druga opcja zapewnia, że zostaną konkretne wybrane proteomy, jednak wymaga podanie ich na wejściu.
+Second option makes sure that exact proteomes will be downloaded, but it requires providing them in the first place.
 
-Skorzystanie z pierwszej opcji:
+Using first option:
 
-Na początku skryptu należy ustawić zmienną SPECIES na True oraz podać nazwę pliku oraz zmienną IDS pozostawić ustawioną na False.
+In the beginning of the script you have to set variable SPECIES to True and provide name of the file and leave variable IDS set to False.
 
-Skorzystanie z drugiej opcji:
+Using second option:
 
-Na początku skryptu ustawić zmienną IDS na True oraz podać nazwę pliku oraz zmienną SPECIES pozostawić ustawioną na False.
+In the beginning of the script you have to set variable IDS to True and provide name of the file and leave variable SPECIES set to False.
 
-#### Pozostałe parametry
+#### The rest of parameters:
 
-Na początku skryptu należy również podać szereg innych parametrów do programu:
+In the beginning of the script you have to also provide multiple other parameters:
 
-working_dir = *str: ścieżka do folderu, w którym mamy plik wejściowy i w którym będą pojawiać się wyniki*
+working_dir = *str: path to directory where you store input file and where results will appear*
 
-merged_fasta_output_filename = *str: nazwa pliku, który połączy wszystkie proteomy*
+merged_fasta_output_filename = *str: file name which will merge all proteomes*
 
-path_to_mmseq = *str: ścieżka do programu mmseqs2*
+path_to_mmseq = *str: path to mmseqs2*
 
-IDENT = *float: minimalny poziom identyczności do klastrowania*
+IDENT = *float: minimal identity threshold for clustering*
 
-COVER = *float: procent pokrycia do klastrowania*
+COVER = *float: coverage percentage for clustering*
 
-COV_MODE = *int: typ stosowanego pokrycia w klastrowaniu, "coverage mode"*
+COV_MODE = *int: coverage mode for clustering*
 
-PREF = *str: prefix plików wyjściowych z klastrowania*
+PREF = *str: prefix for clustering output files*
 
-path_to_muscle = *str: ścieżka do programu muscle*
+path_to_muscle = *str: path to muscle*
 
-TREE_CONSTRUCTION_METHOD = *str: metoda budowania drzew w Phylo.TreeConstruction, np. 'nj' lub 'mp'*
+TREE_CONSTRUCTION_METHOD = *str: method for buliding trees in Phylo.TreeConstruction, for example 'nj' or 'mp'*
 
-DISTANCE_METHOD = *str: metoda liczenia odległości między sekwencjami do budowania drzew, np. 'blosum62', 'pam70'*
+DISTANCE_METHOD = *str: method for calculating distance between sequences for tree construction, for example: 'blosum62', 'pam70'*
 
-PATH_RSCRIPT = *str: ścieżka do Rscript w celu wywołania skryptu R, w przypadku korzystania z systemu operacyjnego linux, prawdopodobnie wystarczy podać napis 'Rscript'*
+PATH_RSCRIPT = *str: path to Rscript in orter to run R script; while using linux operating system, it is probably sufficient to set it to 'Rscript'*
 
-PATH_DUPTREE = *ścieżka do programu duptree*
+PATH_DUPTREE = *path to duptree*
 
-BOOTSTRAP_REP = *int: liczba drzew generowanych za pomocą metody bootstrap*
+BOOTSTRAP_REP = *int: number of bootstrap samples*
 
-Aby uruchomić program należy mieć w katalogu, w którym pracujemy skrypty: projekt_gp.py, consensus.r, download_proteome.py oraz uruchomić skrypt projekt_gp.py.
+To run the script we have to store following files in the working directory: projekt_gp.py, consensus.r, download_proteome.py and run projekt_gp.py file.
